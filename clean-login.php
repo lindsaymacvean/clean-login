@@ -222,7 +222,10 @@ function clean_login_load_before_headers() {
 
 			// LOGIN
 			if ( isset( $_REQUEST['action'] ) && $_REQUEST['action'] == 'login' ) {
-				$login_url = get_option( 'cl_login_url', '');
+				if(get_option('cl_redirect_after_login', false) && get_option('cl_login_redirect_url', false))
+					$login_url = get_option('cl_login_redirect_url');
+				else
+					$login_url = get_option( 'cl_login_url', '');
 				if ( $login_url != '' )
 					$url = $login_url;
 				$user = wp_signon();
@@ -568,6 +571,8 @@ function clean_login_get_pages_with_shortcodes( $post_id ) {
 	
 	$post = get_post( $post_id );
 
+
+	// update the wordpress login_url to the custom clean-login permalink
 	if ( has_shortcode( $post->post_content, 'clean-login' ) ) {
 		update_option( 'cl_login_url', get_permalink( $post->ID ) );
 		add_filter('login_url', 'cl_login_page', 10, 2);
@@ -748,6 +753,8 @@ function clean_login_options() {
         update_option( 'cl_single_password', isset( $_POST['singlepassword'] ) ? $_POST['singlepassword'] : '' );
         update_option( 'cl_automatic_login', isset( $_POST['automaticlogin'] ) ? $_POST['automaticlogin'] : '' );
         update_option( 'cl_url_redirect', isset($_POST['automaticlogin']) && isset($_POST['urlredirect']) ? esc_url_raw($_POST['urlredirect']) : home_url() );
+        update_option( 'cl_redirect_after_login', isset( $_POST['loginredirect'] ) ? $_POST['loginredirect'] : '' );
+        update_option( 'cl_login_redirect_url', isset($_POST['loginredirect']) && isset($_POST['urlloginredirect']) ? esc_url_raw($_POST['urlloginredirect']) : get_option('cl_login_url') );
         
 		echo '<div class="updated"><p><strong>'. __( 'Settings saved.', 'cleanlogin' ) .'</strong></p></div>';
     }
@@ -770,7 +777,8 @@ function clean_login_options() {
     $singlepassword = get_option('cl_single_password');
     $automaticlogin = get_option('cl_automatic_login', false) ? true: false;
     $urlredirect = get_option('cl_url_redirect', false) ? esc_url(get_option('cl_url_redirect')): home_url();
-
+    $loginredirect = get_option('cl_redirect_after_login', false) ? true: false;
+    $urlloginredirect = get_option('cl_login_redirect_url', false) ? esc_url(get_option('cl_login_redirect_url')): NULL;
     ?>
     	<form name="form1" method="post" action="">
     	<table class="form-table">
@@ -857,7 +865,14 @@ function clean_login_options() {
 					<th scope="row"><?php echo __( 'Automatically Login after Registration', 'cleanlogin' ); ?></th>
 					<td>
 						<label><input name="automaticlogin" type="checkbox" id="automaticlogin" <?php if( $automaticlogin != '' ) echo 'checked="checked"'; ?>><?php echo __( 'Automatically Login after registration?', 'cleanlogin' ); ?></label>
-						<p id="urlredirect"><label><input type="text" name="urlredirect" value="<?php echo $urlredirect; ?>"><?php echo __( 'URL after registration (if blank then homepage)', 'cleanlogin' ); ?></label></p>
+						<p id="urlredirect"><label><?php echo __( 'URL after registration (if blank then homepage) ... ', 'cleanlogin' ); ?><input type="text" name="urlredirect" value="<?php echo $urlredirect; ?>" class="large-text"></label></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php echo __( 'Redirect After Login', 'cleanlogin' ); ?></th>
+					<td>
+						<label><input name="loginredirect" type="checkbox" id="loginredirect" <?php if( $loginredirect != '' ) echo 'checked="checked"'; ?>><?php echo __( 'Redirect to a custom url after login?', 'cleanlogin' ); ?></label>
+						<p id="urlloginredirect"><label><?php echo __( 'Redirect to this url after login (if blank then [clean-login-edit] page) ... ', 'cleanlogin' ); ?><input type="text" name="urlloginredirect" value="<?php echo $urlloginredirect; ?>" class="large-text"></label></p>
 					</td>
 				</tr>
 			</tbody>
@@ -898,6 +913,16 @@ function clean_login_options() {
 
         $('#automaticlogin').click(function() {
     		$('#urlredirect').toggle();
+    	});
+
+    	if ($('#loginredirect').is(':checked')) {
+            $('#urlloginredirect').show();
+        } else {
+        	$('#urlloginredirect').hide();
+        }
+
+        $('#loginredirect').click(function() {
+    		$('#urlloginredirect').toggle();
     	});
 
 		if ($('#emailnotification').is(':checked')) {
