@@ -230,7 +230,6 @@ function clean_login_load_before_headers() {
 					$url = esc_url( add_query_arg( 'authentication', 'failed', $url ) );
 				else
 					$url = esc_url( add_query_arg( 'authentication', 'success', $url ) );
-
 				wp_safe_redirect( $url );
 
 			// LOGOUT
@@ -561,14 +560,20 @@ add_action('init','clean_login_register_session');
  */
 function clean_login_get_pages_with_shortcodes( $post_id ) {
 
-	$revision = wp_is_post_revision( $post_id );
-
-	if ( $revision ) $post_id = $revision;
+	//stop the save_post calling twice because of revisions and autosaves
+	//https://tommcfarlin.com/wordpress-save_post-called-twice/
+	if(wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
+		return;
+	}
 	
 	$post = get_post( $post_id );
 
 	if ( has_shortcode( $post->post_content, 'clean-login' ) ) {
 		update_option( 'cl_login_url', get_permalink( $post->ID ) );
+		add_filter('login_url', 'cl_login_page', 10, 2);
+		function cl_login_page( $login_url, $redirect) {
+			return get_permalink( $post->ID );
+		}
 	}
 
 	if ( has_shortcode( $post->post_content, 'clean-login-edit' ) ) {
