@@ -222,17 +222,20 @@ function clean_login_load_before_headers() {
 
 			// LOGIN
 			if ( isset( $_REQUEST['action'] ) && $_REQUEST['action'] == 'login' ) {
-				if(get_option('cl_redirect_after_login', false) && get_option('cl_login_redirect_url', false))
-					$login_url = get_option('cl_login_redirect_url');
-				else
-					$login_url = get_option( 'cl_login_url', '');
-				if ( $login_url != '' )
-					$url = $login_url;
 				$user = wp_signon();
 				if ( is_wp_error( $user ) )
 					$url = esc_url( add_query_arg( 'authentication', 'failed', $url ) );
-				else
+				else {
+					// check if current user is admin
+					$admin = in_array( 'administrator', (array) $user->roles );
+					if(get_option('cl_redirect_after_login', false) && get_option('cl_login_redirect_url', false) && get_option('cl_login_redirect_url') != '' &&  $admin)
+						$url = admin_url();
+					else if (get_option('cl_redirect_after_login', false) && get_option('cl_login_redirect_url', false) && get_option('cl_login_redirect_url') != '')
+						$url = get_option('cl_login_redirect_url');
+					else
+						$url = get_option( 'cl_login_url', '');
 					$url = esc_url( add_query_arg( 'authentication', 'success', $url ) );
+				}
 				wp_safe_redirect( $url );
 
 			// LOGOUT
@@ -575,10 +578,6 @@ function clean_login_get_pages_with_shortcodes( $post_id ) {
 	// update the wordpress login_url to the custom clean-login permalink
 	if ( has_shortcode( $post->post_content, 'clean-login' ) ) {
 		update_option( 'cl_login_url', get_permalink( $post->ID ) );
-		add_filter('login_url', 'cl_login_page', 10, 2);
-		function cl_login_page( $login_url, $redirect) {
-			return get_permalink( $post->ID );
-		}
 	}
 
 	if ( has_shortcode( $post->post_content, 'clean-login-edit' ) ) {
